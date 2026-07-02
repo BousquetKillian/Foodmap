@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2F6BFF">
+<title>FoodMap — Mes restos dans le monde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --orange:#2F6BFF;        /* bleu principal */
+  --orange-deep:#1D4ED8;
+  --orange-soft:#7C9EFF;
+  --cream:#EEF2FF;         /* fond bleuté clair */
+  --card:#FFFFFF;
+  --ink:#131B33;
+  --ink-soft:#6B7597;
+  --rose:#FF4D9D;          /* rose pétant */
+  --sky:#22D3EE;           /* cyan pétant */
+  --lime:#3DDC84;          /* vert pétant */
+  --gold:#FFC93C;
+  --yellow:#FFD23F;
+  --violet:#8B5CF6;
+  --r-lg:26px;
+  --r-md:18px;
+  --r-pill:999px;
+  --shadow:0 8px 24px rgba(19,27,51,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:'Baloo 2',system-ui,sans-serif;
+  background:var(--cream);
+  color:var(--ink);
+  display:flex;justify-content:center;
+}
+#app{
+  width:100%;max-width:480px;height:100dvh;
+  display:flex;flex-direction:column;
+  background:var(--cream);position:relative;overflow:hidden;
+}
+
+/* ---------- Header ---------- */
+header{
+  padding:16px 18px 10px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex:0 0 auto;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,var(--orange),var(--violet));
+  color:#fff;font-size:22px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);
+  animation:logofloat 3s ease-in-out infinite;
+}
+@keyframes logofloat{
+  0%,100%{transform:translateY(0) rotate(0)}
+  50%{transform:translateY(-3px) rotate(-6deg)}
+}
+.brand h1{
+  font-size:21px;font-weight:800;line-height:1;
+  background:linear-gradient(90deg,#2F6BFF,#22D3EE,#FF4D9D,#FFD23F,#8B5CF6,#2F6BFF);
+  background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  color:transparent;-webkit-text-fill-color:transparent;
+  animation:gradmove 4s linear infinite;
+}
+@keyframes gradmove{to{background-position:300% 0}}
+.brand small{color:var(--ink-soft);font-weight:600;font-size:12px}
+.chip-count{
+  background:var(--orange);color:#fff;font-weight:800;
+  border-radius:var(--r-pill);padding:8px 14px;font-size:15px;
+  display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);
+}
+
+/* ---------- Stats hero (signature) ---------- */
+.hero{
+  margin:4px 18px 12px;
+  background:linear-gradient(135deg,var(--orange),var(--violet));
+  border-radius:var(--r-lg);
+  color:#fff;padding:16px 16px 14px;box-shadow:var(--shadow);flex:0 0 auto;
+}
+.hero h2{font-size:17px;font-weight:800;margin-bottom:10px}
+.hero .podium{display:flex;gap:8px}
+.hero .step{
+  flex:1;background:rgba(255,255,255,.18);border-radius:var(--r-md);
+  padding:10px 6px;text-align:center;transition:transform .2s;
+}
+.hero .step:active{transform:scale(.95)}
+.hero .step.on{background:#fff;color:var(--orange)}
+.hero .step b{display:block;font-size:22px;font-weight:800;line-height:1.1}
+.hero .step span{font-size:11.5px;font-weight:700;opacity:.9}
+
+/* ---------- Tabs / views ---------- */
+main{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;display:none;flex-direction:column;min-height:0}
+.view.active{display:flex;animation:viewin .28s ease}
+@keyframes viewin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.toggle:active,.fchip:active,.btn:active,.btn-round:active,.cat:active,.seg button:active{transform:scale(.94)}
+.toggle,.fchip,.btn,.btn-round,.cat,.seg button{transition:transform .12s,background .15s}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ---------- Map view ---------- */
+#map{flex:1;border-radius:var(--r-lg) var(--r-lg) 0 0;z-index:1}
+.map-tools{
+  position:absolute;top:12px;left:12px;right:12px;z-index:500;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;
+}
+.searchbar{
+  display:flex;gap:8px;pointer-events:auto;
+}
+.searchbar input{
+  flex:1;border:none;border-radius:var(--r-pill);padding:12px 18px;
+  font:inherit;font-weight:600;font-size:15px;box-shadow:var(--shadow);
+  background:#fff;color:var(--ink);outline:none;
+}
+.searchbar input::placeholder{color:var(--ink-soft)}
+.btn-round{
+  width:46px;height:46px;border:none;border-radius:50%;
+  background:var(--orange);color:#fff;font-size:19px;cursor:pointer;
+  box-shadow:var(--shadow);flex:0 0 auto;
+}
+.map-toggles{display:flex;gap:8px;pointer-events:auto;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.map-toggles::-webkit-scrollbar{display:none}
+.toggle{
+  border:none;border-radius:var(--r-pill);padding:9px 15px;font:inherit;
+  font-weight:700;font-size:13px;background:#fff;color:var(--ink);
+  box-shadow:var(--shadow);cursor:pointer;flex:0 0 auto;white-space:nowrap;
+}
+.toggle.on{background:var(--ink);color:#fff}
+.hint{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:500;
+  background:rgba(19,27,51,.85);color:#fff;font-size:12.5px;font-weight:600;
+  border-radius:var(--r-pill);padding:8px 16px;white-space:nowrap;
+}
+
+/* markers */
+.pin{
+  width:38px;height:38px;border-radius:50% 50% 50% 6px;transform:rotate(-45deg);
+  background:var(--orange);box-shadow:0 4px 10px rgba(0,0,0,.25);
+  display:flex;align-items:center;justify-content:center;border:3px solid #fff;
+  animation:pinpop .35s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pinpop{from{transform:rotate(-45deg) scale(0)}to{transform:rotate(-45deg) scale(1)}}
+.pin span{transform:rotate(45deg);font-size:17px}
+.pin.todo{background:var(--yellow)}
+.pin.fav{background:var(--rose)}
+.pin.osm{
+  width:30px;height:30px;background:#fff;border:2.5px solid var(--orange);
+  box-shadow:0 3px 8px rgba(0,0,0,.2);
+}
+.pin.osm span{font-size:14px}
+
+/* ---------- Lists ---------- */
+.scroll{flex:1;overflow-y:auto;padding:4px 18px 110px}
+.section-title{font-size:17px;font-weight:800;margin:14px 2px 8px;display:flex;align-items:center;gap:8px}
+.filters{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.fchip{
+  flex:0 0 auto;border:none;border-radius:var(--r-pill);padding:8px 14px;
+  font:inherit;font-weight:700;font-size:13px;background:#fff;color:var(--ink);
+  box-shadow:var(--shadow);cursor:pointer;
+}
+.fchip.on{background:var(--orange);color:#fff}
+
+.folder{
+  background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);
+  margin-bottom:12px;overflow:hidden;
+}
+.folder-head{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;
+  user-select:none;
+}
+.folder-head .ic{
+  width:42px;height:42px;border-radius:14px;font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+}
+.folder-head .ic.done{background:var(--lime)}
+.folder-head .ic.todo{background:var(--sky)}
+.folder-head .ic.fav{background:var(--rose)}
+.folder-head b{font-size:15.5px}
+.folder-head small{display:block;color:var(--ink-soft);font-weight:600;font-size:12px}
+.folder-head .arrow{margin-left:auto;color:var(--ink-soft);transition:transform .2s}
+.folder.open .arrow{transform:rotate(90deg)}
+.folder-body{display:none;border-top:1.5px dashed #DFE6FA}
+.folder.open .folder-body{display:block}
+
+.resto{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;
+  border-bottom:1.5px dashed #DFE6FA;
+}
+.resto:last-child{border-bottom:none}
+.resto .em{
+  width:40px;height:40px;border-radius:50%;background:var(--cream);
+  display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;
+}
+.resto .tx{flex:1;min-width:0}
+.resto .tx b{font-size:14.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.resto .tx small{color:var(--ink-soft);font-weight:600;font-size:12px}
+.resto .stars{color:var(--gold);font-size:13px;letter-spacing:1px;flex:0 0 auto}
+.resto .heart{font-size:16px;flex:0 0 auto}
+.empty{
+  text-align:center;color:var(--ink-soft);font-weight:600;padding:26px 20px;font-size:14px;
+}
+
+/* ---------- Bottom nav ---------- */
+nav{
+  position:absolute;left:14px;right:14px;bottom:14px;z-index:600;
+  background:var(--ink);border-radius:var(--r-pill);
+  display:flex;align-items:center;justify-content:space-around;
+  padding:8px;box-shadow:0 10px 30px rgba(19,27,51,.4);
+}
+nav button{
+  flex:1;border:none;background:none;color:#8C96BD;font:inherit;font-weight:700;
+  font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:6px 0;cursor:pointer;border-radius:var(--r-pill);
+}
+nav button .i{font-size:19px}
+nav button.on{color:#fff;background:var(--orange)}
+#fab{
+  position:absolute;right:18px;bottom:88px;z-index:600;
+  width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--orange),var(--sky));
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  padding:0;line-height:1;
+  box-shadow:0 10px 24px rgba(47,107,255,.45);
+  transition:transform .15s;
+  animation:fabpulse 2.6s ease-in-out infinite;
+}
+@keyframes fabpulse{
+  0%,100%{box-shadow:0 10px 24px rgba(47,107,255,.45)}
+  50%{box-shadow:0 10px 30px rgba(34,211,238,.6)}
+}
+#fab:active{transform:scale(.92)}
+#fab svg{width:24px;height:24px;display:block}
+
+/* ---------- Modals ---------- */
+.overlay{
+  position:absolute;inset:0;z-index:800;background:rgba(19,27,51,.5);
+  display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.open{display:flex}
+.sheet{
+  width:100%;max-height:88%;overflow-y:auto;background:var(--cream);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px 18px 26px;
+  animation:up .25s ease;
+}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.sheet .grab{width:44px;height:5px;border-radius:3px;background:#C4CDEB;margin:0 auto 14px}
+.sheet h3{font-size:19px;font-weight:800;margin-bottom:12px}
+label.f{display:block;font-weight:700;font-size:13px;margin:12px 2px 5px;color:var(--ink-soft)}
+.sheet input[type=text],.sheet textarea,.sheet select{
+  width:100%;border:none;border-radius:var(--r-md);padding:12px 14px;
+  font:inherit;font-weight:600;font-size:15px;background:#fff;color:var(--ink);
+  box-shadow:var(--shadow);outline:none;resize:none;
+}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:2px;scrollbar-width:none}
+.cats::-webkit-scrollbar{display:none}
+.cat{
+  flex:0 0 auto;border:2.5px solid transparent;border-radius:var(--r-md);
+  background:#fff;box-shadow:var(--shadow);padding:8px 12px;cursor:pointer;
+  font:inherit;font-weight:700;font-size:13px;
+}
+.cat.on{border-color:var(--orange);color:var(--orange)}
+.seg{display:flex;gap:8px;margin-top:2px}
+.seg button{
+  flex:1;border:none;border-radius:var(--r-md);padding:11px;font:inherit;
+  font-weight:800;font-size:14px;background:#fff;box-shadow:var(--shadow);
+  cursor:pointer;color:var(--ink);
+}
+.seg button.on{background:var(--orange);color:#fff}
+.starpick{display:flex;gap:6px;font-size:30px;cursor:pointer;padding:2px}
+.starpick span{color:#D4DCF5}
+.starpick span.on{color:var(--gold)}
+.btn{
+  width:100%;border:none;border-radius:var(--r-pill);padding:14px;margin-top:16px;
+  font:inherit;font-weight:800;font-size:16px;background:var(--orange);color:#fff;
+  cursor:pointer;box-shadow:0 8px 20px rgba(47,107,255,.35);
+}
+.btn.ghost{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+.btn.danger{background:none;color:#D33;box-shadow:none;padding:8px;margin-top:8px;font-size:14px}
+.row2{display:flex;gap:10px}
+.row2>*{flex:1}
+.geo-status{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-top:6px;min-height:16px}
+.detail-top{display:flex;align-items:flex-start;gap:12px}
+.detail-top .em{width:54px;height:54px;border-radius:18px;background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-size:26px}
+.detail-top .meta small{color:var(--ink-soft);font-weight:700;font-size:12.5px;display:block}
+.badge{display:inline-block;border-radius:var(--r-pill);padding:4px 12px;font-size:12px;font-weight:800;margin-top:6px}
+.badge.done{background:var(--lime)}
+.badge.todo{background:var(--sky)}
+.osm-photo{margin-top:12px;display:none}
+.osm-photo img{
+  width:100%;max-height:200px;object-fit:cover;
+  border-radius:var(--r-md);box-shadow:var(--shadow);display:block;
+}
+.info-rows{margin-top:10px}
+.info-rows .ir{
+  display:flex;align-items:center;gap:10px;background:#fff;
+  border-radius:var(--r-md);box-shadow:var(--shadow);
+  padding:10px 14px;margin-top:8px;font-weight:600;font-size:13.5px;
+}
+.info-rows .ir a{color:var(--orange);text-decoration:none;word-break:break-all}
+.grating{
+  display:none;align-items:center;gap:8px;margin-top:12px;
+  background:#fff;border-radius:var(--r-md);box-shadow:var(--shadow);
+  padding:10px 14px;font-weight:800;font-size:15px;
+}
+.grating .gs{color:var(--gold);font-size:17px;letter-spacing:1px}
+.grating small{color:var(--ink-soft);font-weight:700;font-size:12px}
+.gallery{
+  display:none;gap:8px;overflow-x:auto;margin-top:10px;
+  scrollbar-width:none;border-radius:var(--r-md);
+}
+.gallery::-webkit-scrollbar{display:none}
+.gallery img{
+  height:150px;border-radius:var(--r-md);box-shadow:var(--shadow);
+  flex:0 0 auto;object-fit:cover;max-width:230px;
+}
+.keynotice{
+  margin-top:12px;background:#fff;border:2.5px dashed var(--orange);
+  border-radius:var(--r-md);padding:14px;font-size:13px;font-weight:600;
+}
+.keynotice b{display:block;margin-bottom:4px;font-size:14px}
+.keynotice span{color:var(--ink-soft)}
+.gload{color:var(--ink-soft);font-weight:700;font-size:13px;margin-top:10px}
+.toast{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:900;
+  background:var(--ink);color:#fff;font-weight:700;font-size:13.5px;
+  border-radius:var(--r-pill);padding:10px 18px;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;
+}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <div class="logo">🍽️</div>
+      <div>
+        <h1>FoodMap</h1>
+        <small>Mes restos dans le monde</small>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn-round" id="settingsBtn" title="Réglages" style="background:#fff;color:var(--ink);font-size:17px">⚙️</button>
+      <div class="chip-count">📍 <span id="countAll">0</span></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== Vue Carte ===== -->
+    <section class="view active" id="view-map">
+      <div id="map"></div>
+      <div class="map-tools">
+        <div class="searchbar">
+          <input id="geoSearch" type="text" placeholder="Chercher un pays, une ville…" autocomplete="off">
+          <button class="btn-round" id="geoBtn" title="Rechercher">🔍</button>
+        </div>
+        <div class="map-toggles">
+          <button class="toggle on" id="discoverBtn">🍴 Découvrir</button>
+          <button class="toggle" id="reloadZone">🔄 Chercher ici</button>
+          <button class="toggle on" data-layer="done">✅ Visités</button>
+          <button class="toggle on" data-layer="todo">🎯 À faire</button>
+          <button class="toggle" id="traceBtn">🧭 Mon tracé</button>
+        </div>
+      </div>
+      <div class="hint" id="hint">Appui long sur la carte pour ajouter un resto</div>
+    </section>
+
+    <!-- ===== Vue Mes restos ===== -->
+    <section class="view" id="view-list">
+      <div class="hero">
+        <h2>Mon carnet de voyage 🌍</h2>
+        <div class="podium">
+          <div class="step on"><b id="stDone">0</b><span>Visités</span></div>
+          <div class="step"><b id="stTodo">0</b><span>À faire</span></div>
+          <div class="step"><b id="stCountries">0</b><span>Pays</span></div>
+        </div>
+      </div>
+      <div class="scroll">
+        <input type="text" id="listSearch" placeholder="Rechercher un resto, un pays…" style="width:100%;border:none;border-radius:var(--r-pill);padding:12px 18px;font:inherit;font-weight:600;font-size:15px;box-shadow:var(--shadow);background:#fff;outline:none;margin-bottom:6px">
+        <div class="filters" id="catFilters"></div>
+        <div class="folder open" id="folderDone">
+          <div class="folder-head" onclick="this.parentElement.classList.toggle('open')">
+            <div class="ic done">✅</div>
+            <div><b>Déjà visités</b><small id="subDone">0 resto</small></div>
+            <div class="arrow">›</div>
+          </div>
+          <div class="folder-body" id="bodyDone"></div>
+        </div>
+        <div class="folder open" id="folderTodo">
+          <div class="folder-head" onclick="this.parentElement.classList.toggle('open')">
+            <div class="ic todo">🎯</div>
+            <div><b>À faire</b><small id="subTodo">0 resto</small></div>
+            <div class="arrow">›</div>
+          </div>
+          <div class="folder-body" id="bodyTodo"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Vue Favoris ===== -->
+    <section class="view" id="view-fav">
+      <div class="scroll">
+        <div class="section-title">💖 Mes favoris</div>
+        <div class="folder open">
+          <div class="folder-body" id="bodyFav" style="display:block"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <button id="fab" title="Ajouter un resto" aria-label="Ajouter un resto">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>
+  </button>
+
+  <nav>
+    <button class="on" data-view="map"><span class="i">🗺️</span>Carte</button>
+    <button data-view="list"><span class="i">📁</span>Mes restos</button>
+    <button data-view="fav"><span class="i">💖</span>Favoris</button>
+  </nav>
+
+  <!-- ===== Modal ajout / édition ===== -->
+  <div class="overlay" id="ovForm">
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3 id="formTitle">Ajouter un resto</h3>
+      <label class="f">Nom du restaurant</label>
+      <input type="text" id="fName" placeholder="Ex : Chez Marco">
+      <label class="f">Catégorie</label>
+      <div class="cats" id="fCats"></div>
+      <label class="f">Statut</label>
+      <div class="seg">
+        <button id="segDone" class="on" type="button">✅ Déjà visité</button>
+        <button id="segTodo" type="button">🎯 À faire</button>
+      </div>
+      <label class="f">Adresse ou ville (pour placer le point)</label>
+      <div class="row2">
+        <input type="text" id="fAddr" placeholder="Ex : Nantes, France">
+        <button class="btn ghost" style="margin-top:0;flex:0 0 auto;width:auto;padding:10px 16px" id="fGeoBtn" type="button">📍 Localiser</button>
+      </div>
+      <div class="geo-status" id="fGeoStatus"></div>
+      <div id="fRateBlock">
+        <label class="f">Ma note</label>
+        <div class="starpick" id="fStars"></div>
+        <label class="f">Mon avis</label>
+        <textarea id="fReview" rows="3" placeholder="Ce que j'en ai pensé…"></textarea>
+        <label class="f">Date de visite</label>
+        <input type="text" id="fDate" placeholder="JJ/MM/AAAA">
+      </div>
+      <button class="btn" id="fSave">Enregistrer</button>
+      <button class="btn ghost" id="fCancel">Annuler</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal resto découvert (OSM) ===== -->
+  <div class="overlay" id="ovOsm">
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="detail-top">
+        <div class="em" id="oEmoji">🍽️</div>
+        <div class="meta" style="flex:1">
+          <h3 id="oName" style="margin-bottom:2px"></h3>
+          <small id="oInfo"></small>
+        </div>
+      </div>
+      <div class="grating" id="oRating"></div>
+      <div class="gallery" id="oGallery"></div>
+      <div class="osm-photo" id="oPhoto"></div>
+      <div class="info-rows" id="oRows"></div>
+      <div class="keynotice" id="oKeyNotice" style="display:none">
+        <b>📷 Photos & ⭐ étoiles directement ici ?</b>
+        <span>Ajoute ta clé Google gratuite dans les réglages, et tout s'affichera dans l'app.</span>
+        <button class="btn ghost" id="oOpenSettings" style="margin-top:10px;padding:10px">⚙️ Configurer ma clé</button>
+      </div>
+      <div class="row2">
+        <button class="btn" id="oAddDone" style="margin-top:14px">✅ Je l'ai fait</button>
+        <button class="btn ghost" id="oAddTodo" style="margin-top:14px">🎯 À faire</button>
+      </div>
+      <button class="btn ghost" id="oClose">Fermer</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal réglages ===== -->
+  <div class="overlay" id="ovSettings">
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3>⚙️ Réglages</h3>
+      <label class="f">Clé API Google Places (gratuite)</label>
+      <input type="text" id="sKey" placeholder="AIza…">
+      <div class="geo-status" style="margin-top:8px">
+        1. Va sur <b>console.cloud.google.com</b> → crée un projet<br>
+        2. Active <b>« Places API (New) »</b><br>
+        3. Crée une clé dans « Identifiants » et colle-la ici<br>
+        Google offre un crédit mensuel largement suffisant pour un usage perso.
+      </div>
+      <button class="btn" id="sSave">Enregistrer</button>
+      <button class="btn ghost" id="sClose">Fermer</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal détail ===== -->
+  <div class="overlay" id="ovDetail">
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="detail-top">
+        <div class="em" id="dEmoji">🍽️</div>
+        <div class="meta" style="flex:1">
+          <h3 id="dName" style="margin-bottom:2px"></h3>
+          <small id="dPlace"></small>
+          <span class="badge" id="dBadge"></span>
+        </div>
+        <button class="btn-round" id="dFav" style="background:#fff;color:var(--ink);font-size:22px">🤍</button>
+      </div>
+      <div id="dReviewBlock">
+        <label class="f">Ma note</label>
+        <div class="starpick" id="dStars"></div>
+        <label class="f">Mon avis</label>
+        <textarea id="dReview" rows="3" placeholder="Ce que j'en ai pensé…"></textarea>
+        <div class="geo-status" id="dDate"></div>
+      </div>
+      <button class="btn" id="dToggleStatus"></button>
+      <div class="row2">
+        <button class="btn ghost" id="dGoMap">🗺️ Voir sur la carte</button>
+        <button class="btn ghost" id="dEdit">✏️ Modifier</button>
+      </div>
+      <button class="btn danger" id="dDelete">Supprimer ce resto</button>
+      <button class="btn ghost" id="dClose">Fermer</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* ================= Stockage (localStorage + secours mémoire) ================= */
+const KEY='foodmap-data-v1';
+let memStore=null;
+function loadData(){
+  try{const raw=localStorage.getItem(KEY);if(raw)return JSON.parse(raw);}catch(e){}
+  return memStore||seed();
+}
+function saveData(){
+  try{localStorage.setItem(KEY,JSON.stringify(restos));}catch(e){memStore=restos;}
+}
+function seed(){
+  return [
+    {id:'s1',name:'La Cigale',cat:'🥐 Français',status:'done',fav:true,lat:47.2136,lng:-1.5606,place:'Nantes, France',country:'France',rating:5,review:'Brasserie magnifique, super moment !',date:'12/05/2026'},
+    {id:'s2',name:'Pizzeria Da Michele',cat:'🍕 Italien',status:'todo',fav:false,lat:40.8498,lng:14.2632,place:'Naples, Italie',country:'Italie',rating:0,review:'',date:''},
+    {id:'s3',name:'Ichiran Ramen',cat:'🍜 Asiatique',status:'todo',fav:true,lat:35.6595,lng:139.7005,place:'Tokyo, Japon',country:'Japon',rating:0,review:'',date:''}
+  ];
+}
+let restos=loadData();
+
+/* ================= Constantes ================= */
+const CATS=['🍕 Italien','🥐 Français','🍣 Japonais','🍜 Asiatique','🍔 Fast-food','🌮 Mexicain','🥙 Oriental','🥩 Grill','🍽️ Autre'];
+const emoji=c=>(c||'🍽️').split(' ')[0];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ================= Carte ================= */
+const map=L.map('map',{zoomControl:false}).setView([47.2184,-1.5536],5);
+
+/* Fond de carte principal + secours si le premier est bloqué */
+let tileErrors=0,fallbackDone=false;
+const tilesMain=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+  maxZoom:19,attribution:'© OpenStreetMap © CARTO'
+}).addTo(map);
+tilesMain.on('tileerror',()=>{
+  tileErrors++;
+  if(tileErrors>=3&&!fallbackDone){
+    fallbackDone=true;
+    map.removeLayer(tilesMain);
+    const tilesOsm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,attribution:'© OpenStreetMap'
+    }).addTo(map);
+    let osmErrors=0;
+    tilesOsm.on('tileerror',()=>{
+      osmErrors++;
+      if(osmErrors>=3){
+        document.getElementById('hint').style.display='block';
+        document.getElementById('hint').textContent='⚠️ Fond de carte bloqué dans cet aperçu — télécharge le fichier ou mets-le sur GitHub Pages';
+      }
+    });
+  }
+});
+
+/* S'assurer que la carte prend bien toute la place */
+window.addEventListener('load',()=>setTimeout(()=>map.invalidateSize(),100));
+window.addEventListener('resize',()=>map.invalidateSize());
+const layerDone=L.layerGroup().addTo(map);
+const layerTodo=L.layerGroup().addTo(map);
+let traceLine=null,traceOn=false;
+
+function makeIcon(r){
+  const cls=r.fav?'fav':(r.status==='todo'?'todo':'');
+  return L.divIcon({className:'',html:`<div class="pin ${cls}"><span>${emoji(r.cat)}</span></div>`,iconSize:[38,38],iconAnchor:[19,36]});
+}
+function drawMarkers(){
+  layerDone.clearLayers();layerTodo.clearLayers();
+  restos.forEach(r=>{
+    const m=L.marker([r.lat,r.lng],{icon:makeIcon(r)}).on('click',()=>openDetail(r.id));
+    (r.status==='done'?layerDone:layerTodo).addLayer(m);
+  });
+  drawTrace();
+}
+function parseFR(d){const p=(d||'').split('/');return p.length===3?new Date(p[2],p[1]-1,p[0]).getTime():0;}
+function drawTrace(){
+  if(traceLine){map.removeLayer(traceLine);traceLine=null;}
+  if(!traceOn)return;
+  const pts=restos.filter(r=>r.status==='done').sort((a,b)=>parseFR(a.date)-parseFR(b.date)).map(r=>[r.lat,r.lng]);
+  if(pts.length<2){toast('Il faut au moins 2 restos visités pour tracer 🧭');return;}
+  traceLine=L.polyline(pts,{color:'#FF4D9D',weight:4,dashArray:'2 10',lineCap:'round'}).addTo(map);
+  map.fitBounds(traceLine.getBounds().pad(0.2));
+}
+document.getElementById('traceBtn').onclick=e=>{
+  traceOn=!traceOn;e.target.classList.toggle('on',traceOn);drawTrace();
+};
+
+/* ================= Découverte des restaurants de la ville (OpenStreetMap / Overpass) ================= */
+const layerOsm=L.layerGroup().addTo(map);
+let discoverOn=true,osmLoading=false,osmTimer=null,lastBbox='';
+const osmCache=new Map();      // id -> data
+const osmShown=new Set();      // ids déjà affichés (évite le clignotement)
+
+/* Plusieurs serveurs Overpass : si l'un est lent ou saturé, on passe au suivant */
+const OVERPASS=[
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+];
+async function fetchOverpass(query){
+  for(const url of OVERPASS){
+    try{
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),25000);
+      const res=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(query),signal:ctrl.signal});
+      clearTimeout(t);
+      if(!res.ok)continue;
+      const js=await res.json();
+      if(js&&Array.isArray(js.elements))return js;
+    }catch(e){/* on essaie le miroir suivant */}
+  }
+  return null;
+}
+
+function cuisineToCat(c){
+  c=(c||'').toLowerCase();
+  if(/pizza|italian/.test(c))return '🍕 Italien';
+  if(/japanese|sushi/.test(c))return '🍣 Japonais';
+  if(/french|crepe|creperie/.test(c))return '🥐 Français';
+  if(/asian|chinese|thai|vietnamese|ramen|noodle|korean|indian/.test(c))return '🍜 Asiatique';
+  if(/burger|fast|chicken|sandwich/.test(c))return '🍔 Fast-food';
+  if(/mexican|tex/.test(c))return '🌮 Mexicain';
+  if(/kebab|turkish|lebanese|oriental|falafel/.test(c))return '🥙 Oriental';
+  if(/steak|grill|barbecue|bbq/.test(c))return '🥩 Grill';
+  return '🍽️ Autre';
+}
+function osmIcon(cat){
+  return L.divIcon({className:'',html:`<div class="pin osm"><span>${emoji(cat)}</span></div>`,iconSize:[30,30],iconAnchor:[15,28]});
+}
+function addOsmMarkers(elements){
+  let added=0;
+  (elements||[]).forEach(el=>{
+    const id='osm'+el.id;
+    if(osmShown.has(id))return;
+    const lat=el.lat||(el.center&&el.center.lat),lng=el.lon||(el.center&&el.center.lon);
+    if(lat==null)return;
+    const t=el.tags||{};
+    const cat=cuisineToCat(t.cuisine||(t.amenity==='fast_food'?'fast':''));
+    const data={id,name:t.name,cat,lat,lng,
+      addr:[t['addr:housenumber'],t['addr:street'],t['addr:city']].filter(Boolean).join(' '),
+      cuisine:t.cuisine||'',
+      website:t.website||t['contact:website']||'',
+      phone:t.phone||t['contact:phone']||'',
+      hours:t.opening_hours||'',
+      img:t.image||'',
+      wiki:t.wikimedia_commons||''};
+    osmCache.set(id,data);
+    osmShown.add(id);
+    L.marker([lat,lng],{icon:osmIcon(cat)}).on('click',()=>openOsm(id)).addTo(layerOsm);
+    added++;
+  });
+  /* Nettoyage si trop de points accumulés */
+  if(osmShown.size>600){layerOsm.clearLayers();osmShown.clear();lastBbox='';}
+  return added;
+}
+
+/* Chargement autour d'un point (utilisé après une recherche de ville, peu importe le zoom) */
+async function loadRestosAround(lat,lng,radius){
+  if(!discoverOn||osmLoading)return;
+  osmLoading=true;
+  toast('Recherche des restos… 🍴');
+  const q=`[out:json][timeout:20];(node["amenity"~"restaurant|fast_food"]["name"](around:${radius},${lat},${lng});way["amenity"~"restaurant|fast_food"]["name"](around:${radius},${lat},${lng}););out center 120;`;
+  const js=await fetchOverpass(q);
+  osmLoading=false;
+  if(!js){toast('Serveurs de restos saturés, réessaie dans un instant ⏳');return;}
+  const n=addOsmMarkers(js.elements);
+  toast(n?`${n} restos trouvés 🍽️`:'Aucun resto référencé ici');
+}
+
+/* Chargement de la zone visible quand on bouge la carte */
+async function loadOsmRestos(force){
+  if(!discoverOn||osmLoading)return;
+  if(map.getZoom()<12){if(force)toast('Zoome un peu plus ou cherche une ville 🔍');return;}
+  const b=map.getBounds();
+  const bbox=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(3)).join(',');
+  if(bbox===lastBbox&&!force)return;
+  lastBbox=bbox;osmLoading=true;
+  toast('Recherche des restos… 🍴');
+  const q=`[out:json][timeout:20];(node["amenity"~"restaurant|fast_food"]["name"](${bbox});way["amenity"~"restaurant|fast_food"]["name"](${bbox}););out center 120;`;
+  const js=await fetchOverpass(q);
+  osmLoading=false;
+  if(!js){toast('Serveurs de restos saturés, réessaie ⏳');return;}
+  const n=addOsmMarkers(js.elements);
+  toast(n?`${n} restos trouvés ici 🍽️`:'Aucun nouveau resto dans cette zone');
+}
+map.on('moveend zoomend',()=>{
+  clearTimeout(osmTimer);
+  osmTimer=setTimeout(loadOsmRestos,500);
+});
+document.getElementById('reloadZone').onclick=()=>loadOsmRestos(true);
+document.getElementById('discoverBtn').onclick=e=>{
+  discoverOn=!discoverOn;
+  e.target.classList.toggle('on',discoverOn);
+  if(discoverOn){lastBbox='';loadOsmRestos();}
+  else{layerOsm.clearLayers();osmShown.clear();lastBbox='';}
+};
+
+/* ================= Réglages / clé Google Places ================= */
+const KEYG='foodmap-gkey';
+let gKey='';
+try{gKey=localStorage.getItem(KEYG)||'';}catch(e){}
+const ovSettings=document.getElementById('ovSettings');
+document.getElementById('settingsBtn').onclick=()=>{
+  document.getElementById('sKey').value=gKey;
+  ovSettings.classList.add('open');
+};
+document.getElementById('sSave').onclick=()=>{
+  gKey=document.getElementById('sKey').value.trim();
+  try{localStorage.setItem(KEYG,gKey);}catch(e){}
+  ovSettings.classList.remove('open');
+  toast(gKey?'Clé enregistrée ✅ Photos & étoiles activées':'Clé retirée');
+};
+document.getElementById('sClose').onclick=()=>ovSettings.classList.remove('open');
+ovSettings.addEventListener('click',e=>{if(e.target===ovSettings)ovSettings.classList.remove('open');});
+
+/* Recherche Google Places (New) : étoiles + photos, affichées dans l'app */
+const gCache=new Map(); // id resto -> résultat Google
+async function fetchGooglePlace(d){
+  if(gCache.has(d.id))return gCache.get(d.id);
+  const body={
+    textQuery:d.name+(d.addr?' '+d.addr:''),
+    locationBias:{circle:{center:{latitude:d.lat,longitude:d.lng},radius:800}},
+    maxResultCount:1
+  };
+  const res=await fetch('https://places.googleapis.com/v1/places:searchText',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'X-Goog-Api-Key':gKey,
+      'X-Goog-FieldMask':'places.id,places.rating,places.userRatingCount,places.photos'
+    },
+    body:JSON.stringify(body)
+  });
+  if(!res.ok)throw new Error('places '+res.status);
+  const js=await res.json();
+  const p=(js.places&&js.places[0])||null;
+  gCache.set(d.id,p);
+  return p;
+}
+function gPhotoUrl(name,w){
+  return 'https://places.googleapis.com/v1/'+name+'/media?maxWidthPx='+w+'&key='+encodeURIComponent(gKey);
+}
+async function showGoogleInfo(d){
+  const rEl=document.getElementById('oRating');
+  const gEl=document.getElementById('oGallery');
+  const notice=document.getElementById('oKeyNotice');
+  rEl.style.display='none';rEl.innerHTML='';
+  gEl.style.display='none';gEl.innerHTML='';
+  notice.style.display=gKey?'none':'block';
+  if(!gKey)return;
+  rEl.style.display='flex';
+  rEl.innerHTML='<span class="gload">Chargement des avis et photos…</span>';
+  try{
+    const p=await fetchGooglePlace(d);
+    if(osmId!==d.id)return; /* la fiche a changé entre-temps */
+    if(!p){rEl.innerHTML='<small>Pas de fiche Google trouvée pour ce resto</small>';return;}
+    /* Étoiles */
+    if(p.rating){
+      const full='★'.repeat(Math.round(p.rating));
+      const empty='☆'.repeat(5-Math.round(p.rating));
+      rEl.innerHTML=`<span class="gs">${full}${empty}</span> ${p.rating.toFixed(1)} <small>(${p.userRatingCount||0} avis Google)</small>`;
+    }else rEl.innerHTML='<small>Pas encore de note Google</small>';
+    /* Galerie photos (plats, menus, salle…) */
+    if(p.photos&&p.photos.length){
+      gEl.style.display='flex';
+      p.photos.slice(0,8).forEach(ph=>{
+        const im=document.createElement('img');
+        im.loading='lazy';im.alt=d.name;
+        im.src=gPhotoUrl(ph.name,500);
+        gEl.appendChild(im);
+      });
+    }
+  }catch(e){
+    if(osmId!==d.id)return;
+    rEl.innerHTML='<small>⚠️ Clé invalide ou « Places API (New) » pas activée dans Google Cloud</small>';
+  }
+}
+
+/* Fiche d'un resto découvert */
+const ovOsm=document.getElementById('ovOsm');
+let osmId=null;
+function openOsm(id){
+  osmId=id;
+  const d=osmCache.get(id);if(!d)return;
+  document.getElementById('oEmoji').textContent=emoji(d.cat);
+  document.getElementById('oName').textContent=d.name;
+  document.getElementById('oInfo').textContent=[d.cat,d.addr].filter(Boolean).join(' · ');
+
+  /* Photo si le resto en a une sur OpenStreetMap / Wikimedia */
+  const ph=document.getElementById('oPhoto');
+  ph.style.display='none';ph.innerHTML='';
+  let photoUrl='';
+  if(d.img&&/^https?:/.test(d.img))photoUrl=d.img;
+  else if(d.wiki){
+    const file=d.wiki.replace(/^File:/i,'');
+    photoUrl='https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(file)+'?width=700';
+  }
+  if(photoUrl){
+    const im=new Image();
+    im.onload=()=>{ph.appendChild(im);ph.style.display='block';};
+    im.src=photoUrl;im.alt=d.name;
+  }
+
+  /* Infos pratiques disponibles */
+  const rows=document.getElementById('oRows');
+  rows.innerHTML='';
+  const addRow=h=>{const div=document.createElement('div');div.className='ir';div.innerHTML=h;rows.appendChild(div);};
+  if(d.hours)addRow('🕒 <span>'+d.hours+'</span>');
+  if(d.phone)addRow('📞 <a href="tel:'+d.phone.replace(/\s/g,'')+'">'+d.phone+'</a>');
+  if(d.website)addRow('🌐 <a href="'+d.website+'" target="_blank" rel="noopener">Site du restaurant (menu)</a>');
+
+  /* Étoiles + photos Google directement dans la fiche */
+  showGoogleInfo(d);
+  ovOsm.classList.add('open');
+}
+document.getElementById('oOpenSettings').onclick=()=>{
+  ovOsm.classList.remove('open');
+  document.getElementById('sKey').value=gKey;
+  ovSettings.classList.add('open');
+};
+function addFromOsm(status){
+  const d=osmCache.get(osmId);if(!d)return;
+  ovOsm.classList.remove('open');
+  openForm(null,{lat:d.lat,lng:d.lng});
+  document.getElementById('fName').value=d.name;
+  if(d.addr)document.getElementById('fAddr').value=d.addr;
+  formState.cat=d.cat;
+  fCats.querySelectorAll('.cat').forEach(b=>b.classList.toggle('on',b.textContent===d.cat));
+  setSeg(status);
+}
+document.getElementById('oAddDone').onclick=()=>addFromOsm('done');
+document.getElementById('oAddTodo').onclick=()=>addFromOsm('todo');
+document.getElementById('oClose').onclick=()=>ovOsm.classList.remove('open');
+ovOsm.addEventListener('click',e=>{if(e.target===ovOsm)ovOsm.classList.remove('open');});
+document.querySelectorAll('.toggle[data-layer]').forEach(b=>{
+  b.onclick=()=>{
+    b.classList.toggle('on');
+    const l=b.dataset.layer==='done'?layerDone:layerTodo;
+    b.classList.contains('on')?map.addLayer(l):map.removeLayer(l);
+  };
+});
+
+/* Appui long / clic long sur la carte pour ajouter */
+let pressTimer=null;
+map.on('mousedown touchstart',e=>{pressTimer=setTimeout(()=>openForm(null,e.latlng),600);});
+['mouseup','touchend','move','dragstart','zoomstart'].forEach(ev=>map.on(ev,()=>clearTimeout(pressTimer)));
+map.on('contextmenu',e=>openForm(null,e.latlng));
+
+/* Recherche pays / ville (Nominatim) */
+async function geocode(q){
+  const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=fr&q='+encodeURIComponent(q);
+  const res=await fetch(url,{headers:{'Accept':'application/json'}});
+  const js=await res.json();
+  return js[0]||null;
+}
+async function doGeoSearch(){
+  const q=document.getElementById('geoSearch').value.trim();
+  if(!q)return;
+  toast('Recherche…');
+  try{
+    const r=await geocode(q);
+    if(!r){toast('Aucun résultat 😕');return;}
+    if(r.addresstype==='country'){
+      map.flyTo([+r.lat,+r.lon],5,{duration:1.2});
+      toast('📍 '+r.display_name.split(',')[0]+' — cherche une ville pour voir les restos');
+    }else{
+      map.flyTo([+r.lat,+r.lon],14,{duration:1});
+      toast('📍 '+r.display_name.split(',')[0]);
+      /* On charge les restos autour de la ville tout de suite, sans attendre le déplacement */
+      loadRestosAround(+r.lat,+r.lon,3000);
+    }
+  }catch(e){toast('Recherche impossible (connexion ?)');}
+}
+document.getElementById('geoBtn').onclick=doGeoSearch;
+document.getElementById('geoSearch').addEventListener('keydown',e=>{if(e.key==='Enter')doGeoSearch();});
+
+/* ================= Navigation ================= */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+b.dataset.view).classList.add('active');
+    if(b.dataset.view==='map')setTimeout(()=>map.invalidateSize(),60);
+  };
+});
+function goMapView(){document.querySelector('nav button[data-view="map"]').click();}
+
+/* ================= Rendu listes ================= */
+let catFilter='Tous';
+function starStr(n){return n?'★'.repeat(n):'';}
+function restoRow(r){
+  const el=document.createElement('div');
+  el.className='resto';
+  el.innerHTML=`<div class="em">${emoji(r.cat)}</div>
+    <div class="tx"><b>${r.name}</b><small>${r.place||'—'}</small></div>
+    <div class="stars">${starStr(r.rating)}</div>
+    <div class="heart">${r.fav?'❤️':''}</div>`;
+  el.onclick=()=>openDetail(r.id);
+  return el;
+}
+function render(){
+  const q=(document.getElementById('listSearch').value||'').toLowerCase();
+  const match=r=>(catFilter==='Tous'||r.cat===catFilter)&&
+    (r.name.toLowerCase().includes(q)||(r.place||'').toLowerCase().includes(q)||(r.country||'').toLowerCase().includes(q));
+  const done=restos.filter(r=>r.status==='done'&&match(r));
+  const todo=restos.filter(r=>r.status==='todo'&&match(r));
+  const fav=restos.filter(r=>r.fav);
+  const fill=(id,arr,msg)=>{
+    const b=document.getElementById(id);b.innerHTML='';
+    if(!arr.length){b.innerHTML=`<div class="empty">${msg}</div>`;return;}
+    arr.forEach(r=>b.appendChild(restoRow(r)));
+  };
+  fill('bodyDone',done,'Aucun resto visité pour l’instant 🍽️');
+  fill('bodyTodo',todo,'Ajoute les restos que tu rêves de tester 🎯');
+  fill('bodyFav',fav,'Touche le cœur d’un resto pour l’ajouter ici 💖');
+  document.getElementById('subDone').textContent=done.length+' resto'+(done.length>1?'s':'');
+  document.getElementById('subTodo').textContent=todo.length+' resto'+(todo.length>1?'s':'');
+  const allDone=restos.filter(r=>r.status==='done');
+  document.getElementById('stDone').textContent=allDone.length;
+  document.getElementById('stTodo').textContent=restos.filter(r=>r.status==='todo').length;
+  document.getElementById('stCountries').textContent=new Set(allDone.map(r=>r.country).filter(Boolean)).size;
+  document.getElementById('countAll').textContent=restos.length;
+  drawMarkers();
+}
+document.getElementById('listSearch').addEventListener('input',render);
+
+/* Filtres catégories */
+const cf=document.getElementById('catFilters');
+['Tous',...CATS].forEach(c=>{
+  const b=document.createElement('button');
+  b.className='fchip'+(c==='Tous'?' on':'');b.textContent=c;
+  b.onclick=()=>{catFilter=c;cf.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));b.classList.add('on');render();};
+  cf.appendChild(b);
+});
+
+/* ================= Formulaire ajout / édition ================= */
+const ovForm=document.getElementById('ovForm');
+let formState={id:null,lat:null,lng:null,country:'',place:'',cat:CATS[0],status:'done',rating:0};
+
+const fCats=document.getElementById('fCats');
+CATS.forEach(c=>{
+  const b=document.createElement('button');
+  b.className='cat';b.type='button';b.textContent=c;
+  b.onclick=()=>{formState.cat=c;fCats.querySelectorAll('.cat').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+  fCats.appendChild(b);
+});
+function setSeg(s){
+  formState.status=s;
+  document.getElementById('segDone').classList.toggle('on',s==='done');
+  document.getElementById('segTodo').classList.toggle('on',s==='todo');
+  document.getElementById('fRateBlock').style.display=s==='done'?'block':'none';
+}
+document.getElementById('segDone').onclick=()=>setSeg('done');
+document.getElementById('segTodo').onclick=()=>setSeg('todo');
+
+const fStars=document.getElementById('fStars');
+for(let i=1;i<=5;i++){
+  const s=document.createElement('span');s.textContent='★';
+  s.onclick=()=>{formState.rating=i;paintStars(fStars,i);};
+  fStars.appendChild(s);
+}
+function paintStars(box,n){[...box.children].forEach((s,i)=>s.classList.toggle('on',i<n));}
+
+async function reverseGeo(lat,lng){
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=fr&lat=${lat}&lon=${lng}`);
+    const js=await res.json();
+    const a=js.address||{};
+    return {country:a.country||'',place:[a.city||a.town||a.village||a.municipality||'',a.country||''].filter(Boolean).join(', ')};
+  }catch(e){return{country:'',place:''};}
+}
+
+function openForm(id,latlng){
+  const r=id?restos.find(x=>x.id===id):null;
+  formState={id:id||null,lat:r?r.lat:(latlng?latlng.lat:null),lng:r?r.lng:(latlng?latlng.lng:null),
+    country:r?r.country:'',place:r?r.place:'',cat:r?r.cat:CATS[0],status:r?r.status:'done',rating:r?r.rating:0};
+  document.getElementById('formTitle').textContent=id?'Modifier le resto':'Ajouter un resto';
+  document.getElementById('fName').value=r?r.name:'';
+  document.getElementById('fAddr').value=r?r.place:'';
+  document.getElementById('fReview').value=r?r.review:'';
+  document.getElementById('fDate').value=r?r.date:'';
+  document.getElementById('fGeoStatus').textContent=formState.lat?'📍 Position choisie sur la carte':'';
+  fCats.querySelectorAll('.cat').forEach(b=>b.classList.toggle('on',b.textContent===formState.cat));
+  setSeg(formState.status);
+  paintStars(fStars,formState.rating);
+  ovForm.classList.add('open');
+  if(latlng&&!id){
+    reverseGeo(latlng.lat,latlng.lng).then(g=>{
+      formState.country=g.country;formState.place=g.place;
+      if(g.place){document.getElementById('fAddr').value=g.place;
+        document.getElementById('fGeoStatus').textContent='📍 '+g.place;}
+    });
+  }
+}
+document.getElementById('fGeoBtn').onclick=async()=>{
+  const q=document.getElementById('fAddr').value.trim();
+  if(!q){toast('Écris une adresse ou une ville');return;}
+  document.getElementById('fGeoStatus').textContent='Recherche…';
+  try{
+    const r=await geocode(q);
+    if(!r){document.getElementById('fGeoStatus').textContent='Adresse introuvable 😕';return;}
+    formState.lat=+r.lat;formState.lng=+r.lon;formState.place=q;
+    const g=await reverseGeo(r.lat,r.lon);
+    formState.country=g.country;if(g.place)formState.place=g.place;
+    document.getElementById('fGeoStatus').textContent='📍 '+(formState.place||q);
+  }catch(e){document.getElementById('fGeoStatus').textContent='Recherche impossible (connexion ?)';}
+};
+document.getElementById('fSave').onclick=()=>{
+  const name=document.getElementById('fName').value.trim();
+  if(!name){toast('Donne un nom au resto 🙂');return;}
+  if(formState.lat==null){toast('Place le resto : adresse + 📍 Localiser');return;}
+  const data={
+    id:formState.id||uid(),name,cat:formState.cat,status:formState.status,
+    lat:formState.lat,lng:formState.lng,place:formState.place||document.getElementById('fAddr').value.trim(),
+    country:formState.country,
+    fav:formState.id?restos.find(x=>x.id===formState.id).fav:false,
+    rating:formState.status==='done'?formState.rating:0,
+    review:formState.status==='done'?document.getElementById('fReview').value.trim():'',
+    date:formState.status==='done'?document.getElementById('fDate').value.trim():''
+  };
+  if(formState.id){restos=restos.map(r=>r.id===formState.id?data:r);}
+  else restos.push(data);
+  saveData();render();ovForm.classList.remove('open');
+  toast(formState.id?'Resto modifié ✅':'Resto ajouté 🎉');
+  map.flyTo([data.lat,data.lng],13,{duration:1});
+};
+document.getElementById('fCancel').onclick=()=>ovForm.classList.remove('open');
+document.getElementById('fab').onclick=()=>openForm(null,null);
+
+/* ================= Détail ================= */
+const ovDetail=document.getElementById('ovDetail');
+let detailId=null;
+const dStars=document.getElementById('dStars');
+for(let i=1;i<=5;i++){
+  const s=document.createElement('span');s.textContent='★';
+  s.onclick=()=>{const r=restos.find(x=>x.id===detailId);r.rating=i;saveData();paintStars(dStars,i);render();};
+  dStars.appendChild(s);
+}
+function openDetail(id){
+  detailId=id;
+  const r=restos.find(x=>x.id===id);if(!r)return;
+  document.getElementById('dEmoji').textContent=emoji(r.cat);
+  document.getElementById('dName').textContent=r.name;
+  document.getElementById('dPlace').textContent=(r.cat||'')+' · '+(r.place||'—');
+  const b=document.getElementById('dBadge');
+  b.textContent=r.status==='done'?'✅ Déjà visité':'🎯 À faire';
+  b.className='badge '+(r.status==='done'?'done':'todo');
+  document.getElementById('dFav').textContent=r.fav?'❤️':'🤍';
+  document.getElementById('dReviewBlock').style.display=r.status==='done'?'block':'none';
+  document.getElementById('dReview').value=r.review||'';
+  document.getElementById('dDate').textContent=r.date?('Visité le '+r.date):'';
+  paintStars(dStars,r.rating||0);
+  document.getElementById('dToggleStatus').textContent=r.status==='done'?'🎯 Remettre dans « À faire »':'✅ Marquer comme visité';
+  ovDetail.classList.add('open');
+}
+document.getElementById('dFav').onclick=()=>{
+  const r=restos.find(x=>x.id===detailId);r.fav=!r.fav;saveData();render();
+  document.getElementById('dFav').textContent=r.fav?'❤️':'🤍';
+  toast(r.fav?'Ajouté aux favoris 💖':'Retiré des favoris');
+};
+document.getElementById('dReview').addEventListener('change',()=>{
+  const r=restos.find(x=>x.id===detailId);r.review=document.getElementById('dReview').value.trim();saveData();
+  toast('Avis enregistré ✍️');
+});
+document.getElementById('dToggleStatus').onclick=()=>{
+  const r=restos.find(x=>x.id===detailId);
+  r.status=r.status==='done'?'todo':'done';
+  if(r.status==='done'&&!r.date){const d=new Date();r.date=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+  saveData();render();openDetail(detailId);
+};
+document.getElementById('dGoMap').onclick=()=>{
+  const r=restos.find(x=>x.id===detailId);
+  ovDetail.classList.remove('open');goMapView();
+  setTimeout(()=>map.flyTo([r.lat,r.lng],14,{duration:1}),120);
+};
+document.getElementById('dEdit').onclick=()=>{ovDetail.classList.remove('open');openForm(detailId,null);};
+document.getElementById('dDelete').onclick=()=>{
+  if(!confirm('Supprimer ce resto ?'))return;
+  restos=restos.filter(r=>r.id!==detailId);saveData();render();
+  ovDetail.classList.remove('open');toast('Resto supprimé 🗑️');
+};
+document.getElementById('dClose').onclick=()=>ovDetail.classList.remove('open');
+[ovForm,ovDetail].forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+/* ================= Toast ================= */
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ================= Démarrage ================= */
+render();
+let hintTimer=setTimeout(()=>document.getElementById('hint').style.display='none',6000);
+
+/* Auto-diagnostic : est-ce que l'app a accès à internet ici ? */
+(async()=>{
+  try{
+    const ctrl=new AbortController();
+    setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch('https://overpass-api.de/api/status',{signal:ctrl.signal});
+    if(!r.ok)throw 0;
+    /* connexion OK : rien à signaler */
+  }catch(e){
+    clearTimeout(hintTimer);
+    const h=document.getElementById('hint');
+    h.style.display='block';
+    h.style.whiteSpace='normal';
+    h.style.maxWidth='90%';
+    h.style.textAlign='center';
+    h.textContent='🚫 Internet est bloqué dans cet aperçu : les restos ne peuvent pas charger ici. Mets le fichier sur GitHub Pages et ouvre le lien github.io — là tout marchera.';
+  }
+})();
+</script>
+</body>
+</html>
